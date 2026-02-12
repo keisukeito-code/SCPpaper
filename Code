@@ -1,0 +1,417 @@
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(cowplot)
+library(ggplot2)
+
+#### Read in cell counts matrix ####
+data.dir <- "data/wt/"
+IWT.data <- Read10X(data.dir = "Directory/wt file")
+IHE.data <- Read10X(data.dir = "Directory/hetero file")
+# Set up control object
+wt <- CreateSeuratObject(counts = IWT.data, project = "sox10_wt", min.cells = 3, min.features = 200)
+wt$hetero <- "wt"
+wt[["percent.mt"]] <- PercentageFeatureSet(wt, pattern = "^mt-")
+wt <- subset(wt, subset = nFeature_RNA > 1000 & nFeature_RNA < 6000 & percent.mt < 5 & nCount_RNA < 40000)
+wt <- NormalizeData(wt, verbose = FALSE)
+wt <- FindVariableFeatures(wt, selection.method = "vst", nfeatures = 3800)
+# Set up hetero object
+hetero <- CreateSeuratObject(counts = IHE.data, project = "sox10_hetero", min.cells = 3, min.features = 200)
+hetero$hetero <- "hetero"
+hetero[["percent.mt"]] <- PercentageFeatureSet(hetero, pattern = "^mt-")
+hetero <- subset(hetero, subset = nFeature_RNA > 1000 & nFeature_RNA < 6000 & percent.mt < 5 & nCount_RNA < 40000)
+hetero <- NormalizeData(hetero, verbose = FALSE)
+hetero <- FindVariableFeatures(hetero, selection.method = "vst", nfeatures = 3800)
+sox10.anchors <- FindIntegrationAnchors(object.list = list(wt, hetero), dims = 1:20)
+sox10_combined <- IntegrateData(anchorset = sox10.anchors, dims = 1:20)
+DefaultAssay(sox10_combined) <- "integrated"
+# Run the standard workflow for visualization and clustering
+sox10_combined <- ScaleData(sox10_combined, verbose = FALSE)
+sox10_combined <- RunPCA(sox10_combined, npcs = 30, verbose = FALSE)
+# t-SNE and Clustering
+sox10_combined <- RunUMAP(sox10_combined, reduction = "pca", dims = 1:20)
+sox10_combined <- FindNeighbors(sox10_combined, reduction = "pca", dims = 1:20)
+sox10_combined <- FindClusters(sox10_combined, resolution = 0.5)
+DefaultAssay(sox10_combined) <- "RNA"
+# Visualization
+p1 <- DimPlot(sox10_combined, reduction = "umap", group.by = "hetero")
+p2 <- DimPlot(sox10_combined, reduction = "umap", label = TRUE)
+plot_grid(p1, p2)
+DimPlot(sox10_combined, reduction = "umap", group.by = "hetero")
+DimPlot(sox10_combined, reduction = "umap", split.by = "hetero")
+cells_to_remove <- WhichCells(sox10_combined, idents = c(9, 10))
+sox10_combined_filtered_9and10 <- subset(sox10_combined, cells = setdiff(Cells(sox10_combined), cells_to_remove))
+DimPlot(sox10_combined_filtered_9and10, split.by = "hetero", pt.size = 3))
+sox10_combined_filtered_9and10$hetero <- factor(x = sox10_combined$hetero, levels = c("wt", "hetero"))
+DimPlot(sox10_combined_filtered_9and10, split.by = "hetero", pt.size = 3))
+
+
+#Feature plot
+FeaturePlot(sox10_combined_filtered_9and10, features = c("Phox2b"), split.by = "hetero",
+            cols = c("lightgrey", "blue"), pt.size = 1) & 
+  theme(legend.position = "right")
+
+
+#Dot plot Fig. S2C
+cells_to_remove <- WhichCells(sox10_combined, idents = c(8, 9, 10, 11, 12))
+wt_cells <- WhichCells(sox10_combined, expression = hetero == "wt")
+wt_cells_filtered <- setdiff(wt_cells, cells_to_remove)
+sox10_WT_filtered <- subset(sox10_combined, cells = wt_cells_filtered)
+features <- c("Dbh", "Th", "Isl1", "Phox2b",
+              "Cenpa", "Cdc20", "Ccnb2",
+              "Postn", "Mpz", "Egfl8", "Igfbp5",
+              "Tagln", "Npy", "Pax3", "Tfap2b",
+              "Hcn1", "Gria4",
+              "Hist1h1b", "Ube2c", "Top2a", "Mki67", "Plp1", "Sox10")
+b <- DotPlot(sox10_WT_filtered, features, assay = "RNA") +
+  scale_size(range = c(1, 15)) +
+  theme(legend.position = "right") +
+  ggtitle("Identity on x-axis") +
+  theme(axis.text.y.left = element_text(size = 30), axis.text.x = element_text(size = 30)) +
+  coord_flip()
+plot_grid(b)
+
+
+#cell cycle scoring Fig. S2D
+sox10_combined_filtered_9and10@meta.data
+s.genes <- sapply(cc.genes.updated.2019$s.genes, function(x){paste0(substr(x,1,1), tolower(substr(x,2,nchar(x))))})
+g2m.genes <- sapply(cc.genes.updated.2019$g2m.genes, function(x){paste0(substr(x,1,1), tolower(substr(x,2,nchar(x))))})
+sox10_combined_filtered_9and10 <- CellCycleScoring(sox10_combined_filtered_9and10,
+                                   g2m.features = g2m.genes,
+                                   s.features = s.genes)
+sox10_combined_filtered_9and10 <- RunPCA(sox10_combined_filtered_9and10)
+DimPlot(sox10_combined_filtered_9and10, group.by="Phase", split.by = "hetero", pt.size = 2)
+
+
+#Mean expression of Phox2b in FigS. 4B
+target_gene <- "Phox2b"
+phox2b_count <- FetchData(
+  object = sox10_combined_filtered_9and10,
+  vars = c("orig.ident", "seurat_clusters", target_gene),
+  slot = "count"  
+)
+phox2b_count$orig.ident <- factor(phox2b_count$orig.ident, 
+                                  levels = c("sox10_wt","sox10_hetero"))
+
+phox2b_count$seurat_clusters <- factor(phox2b_count$seurat_clusters, 
+                                       levels = c("0","1","2","3","4","5","6","7"))
+phox2b_count <- phox2b_count %>%
+  filter(seurat_clusters %in% c("0","1","2","3","4","5","6","7"))
+mean_expr_by_cluster <- phox2b_count %>%
+  group_by(seurat_clusters, orig.ident) %>%
+  summarize(mean_expr = mean(.data[[target_gene]]), .groups = "drop")
+p1 <- ggplot(mean_expr_by_cluster, aes(x = seurat_clusters, 
+                                       y = mean_expr, 
+                                       fill = orig.ident)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_minimal() +
+  labs(title = "Average Phox2b expression by cluster",
+       x = "Cluster",
+       y = "Mean Expression (RNA slot = count)") +
+  scale_fill_discrete(name = "Genotype")
+print(p1)
+
+
+#Percentage of Phox2b-expressing cells, histogram in Fig. S4C
+gene <- "Phox2b"
+data <- FetchData(subset(sox10_combined_filtered_9and10, idents = c("0","1","2","3","4","5","6")), vars = c("orig.ident", "seurat_clusters", gene), slot = "count")
+sum_wt <- sum(data$orig.ident == "sox10_wt")
+sum_hetero <- sum(data$orig.ident == "sox10_hetero")
+data <- data[data[[gene]] > 1, ]
+data$orig.ident <- factor(data$orig.ident, levels = c("sox10_hetero", "sox10_wt"))
+data_norm <- data
+adjusted_data <- data %>%
+  count(orig.ident, Phox2b) %>%
+  mutate(adjusted_count = case_when(
+    orig.ident == "sox10_hetero" ~ n / sum_hetero,
+    orig.ident == "sox10_wt" ~ n / sum_wt
+  ))
+ggplot(adjusted_data, aes(x = !!sym(gene), y = adjusted_count, fill = orig.ident)) +
+  geom_col(position = "identity", alpha = 0.5) +
+  labs(title = paste(gene, "Expression in hetero and wt (cluster 0-6)"),
+       x = "Expression Level",
+       y = "Normalized Cell Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("sox10_hetero" = "blue", "sox10_wt" = "red"))
+
+
+#Violin plot
+plots <- VlnPlot(sox10_combined_filtered_9and10, features = c("Sox10"), split.by = "hetero", assay = "RNA",
+                 pt.size = 1, combine = FALSE)  
+CombinePlots(plots = plots, ncol = 1)
+
+#Heatmap Fig. S2B
+cells.use <- WhichCells(
+  sox10_combined_filtered_9and10,
+  idents = c(7, 8, 11, 12))
+sox10_combined_filtered_9and10 <- ScaleData(
+  sox10_combined_filtered_9and10,
+  assay = "RNA")
+DoHeatmap(
+  sox10_combined_filtered_9and10,
+  assay = "RNA",
+  features = c(
+    "Phox2b", "Phox2a", "Tubb3", "Elavl3", "Elavl4",
+    "C1qa", "Ccl3", "Ccl4", "Aif1", "Vav1",
+    "Actc1", "Acta2", "Tnnt1", "Myog", "Myl1",
+    "Tyr", "Pmel", "Dct", "Mitf", "Kit"),
+  cells = cells.use) + scale_fill_gradientn(colors = c("blue", "white", "red"))
+
+
+
+##Pseudotime analysis
+####Library install
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.22")
+BiocManager::install(c('BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
+                       'limma', 'lme4', 'S4Vectors', 'SingleCellExperiment',
+                       'SummarizedExperiment', 'batchelor', 'Matrix.utils',
+                       'HDF5Array', 'terra', 'ggrastr'))
+install.packages("devtools")
+devtools::install_github('cole-trapnell-lab/monocle3')
+devtools::install_github('satijalab/seurat-wrappers')install.packages("R.utils")
+devtools::install_github('satijalab/seurat-wrappers')
+####Libraray Calling
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+#### Data Calling ####
+sox10_combined_filtered_9and10 <- readRDS("Y:/scRNAseq data/sox10_combined_filtered_9and10.rds")
+Idents(sox10_combined_filtered_9and10) <- "seurat_clusters"
+DimPlot(sox10_combined_filtered_9and10) 
+sox10_combined_filtered_9and10.cds <- as.cell_data_set(sox10_combined_filtered_9and10)
+sox10_combined_filtered_9and10.cds <- monocle3::estimate_size_factors(sox10_combined_filtered_9and10.cds)
+rowData(sox10_combined_filtered_9and10.cds)$gene_short_name <- row.names(rowData(sox10_combined_filtered_9and10.cds))
+####Pseudotime by monocle3####
+sox10_combined_filtered_9and10.cds <- cluster_cells(cds = sox10_combined_filtered_9and10.cds, reduction_method = "UMAP", resolution = 0.0002)
+sox10_combined_filtered_9and10.cds@clusters@listData[["UMAP"]][["clusters"]]
+sox10_combined_filtered_9and10.cds <- learn_graph(sox10_combined_filtered_9and10.cds, use_partition = TRUE)
+plot_cells(sox10_combined_filtered_9and10.cds, cell_size = 1, group_label_size = 6, graph_label_size = 5,)
+sox10_combined_filtered_9and10.cds <- order_cells(sox10_combined_filtered_9and10.cds)
+plot_cells(sox10_combined_filtered_9and10.cds,
+           color_cells_by = "pseudotime",
+           label_cell_groups=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=FALSE,
+           graph_label_size=1.5)
+DimPlot(sox10_combined_filtered_9and10, label=TRUE)
+
+
+
+##Subclustering
+Idents(sox10_combined_filtered_9and10) <- "seurat_clusters"
+sox10.cluster7 <- subset(sox10_combined_filtered_9and10, idents=7)
+DimPlot(sox10.cluster7)
+names(sox10.cluster7@graphs)
+sox10.cluster7 <- FindNeighbors(sox10.cluster7, reduction = "pca", dims = 1:20)
+sox10.cluster7 <- FindClusters(sox10.cluster7, graph.name = "integrated_snn", resolution = 0.5)
+sox10.cluster7 <- RunUMAP(sox10.cluster7, reduction = "pca", dims = 1:20)
+DimPlot(sox10.cluster7, label=TRUE)
+##Removing outliers
+umap_coords <- Embeddings(sox10.cluster7, reduction = "umap")
+outliers <- rownames(umap_coords[umap_coords[, "UMAP_1"] > 10 & umap_coords[, "UMAP_2"] < -4, ])
+sox10.cluster7.filtered <- subset(sox10.cluster7, cells = setdiff(Cells(sox10.cluster7), outliers))
+DimPlot(sox10.cluster7.filtered, reduction = "umap", label = FALSE, pt.size = 3) + FontSize(x.text = 20, y.text = 20, x.title = 20, y.title = 20) 
+##Changing cluster number
+old_ids <- Idents(sox10.cluster7.filtered)
+new_ids <- old_ids
+new_ids[old_ids == 3] <- 0
+new_ids[old_ids == 1] <- 1
+new_ids[old_ids == 4] <- 2
+new_ids[old_ids == 2] <- 3
+new_ids[old_ids == 0] <- 4
+new_ids[old_ids == 5] <- 5
+sox10.cluster7.filtered$renamed_clusters <- factor(new_ids,levels = 0:5)
+DimPlot(sox10.cluster7.filtered, reduction = "umap", group.by = "renamed_clusters", label = FALSE, repel = TRUE,pt.size = 4)
+saveRDS(sox10_cluster7, file = "directory/sox10_cluster7.rds")
+
+
+##DEG searching
+umap_coords <- Embeddings(sox10.cluster7, "umap")
+outliers <- rownames(umap_coords[umap_coords[, "UMAP_1"] > 10 & umap_coords[, "UMAP_2"] < -5, ])
+sox10.cluster7.filtered <- subset(sox10.cluster7,cells = setdiff(Cells(sox10.cluster7), outliers))
+Idents(sox10.cluster7.filtered) <-
+  as.character(Idents(sox10.cluster7.filtered))
+new.cluster.ids <- c(
+  "3" = "0",
+  "1" = "1",
+  "4" = "2",
+  "2" = "3",
+  "0" = "4",
+  "5" = "5")
+sox10.cluster7.filtered <- RenameIdents(sox10.cluster7.filtered, new.cluster.ids)
+Idents(sox10.cluster7.filtered) <- factor(Idents(sox10.cluster7.filtered), levels = c("0","1","2","3","4","5"))
+sox10.cluster7.filtered$seurat_clusters <-as.character(Idents(sox10.cluster7.filtered))
+all.markers.7 <- FindAllMarkers(sox10.cluster7.filtered, logfc.threshold = 0, min.diff.pct = 0.20)
+sox10.cluster7.filtered$celltype.hetero <- paste(sox10.cluster7.filtered$seurat_clusters, sox10.cluster7.filtered$hetero, sep = "_")
+Idents(sox10.cluster7.filtered) <- "celltype.hetero"
+cluster0 <- FindMarkers(sox10.cluster7.filtered, "0_wt", "0_hetero", logfc.threshold = 0, min.diff.pct = 0.20)
+cluster1 <- FindMarkers(sox10.cluster7.filtered, "1_wt", "1_hetero", logfc.threshold = 0, min.diff.pct = 0.20)
+cluster2 <- FindMarkers(sox10.cluster7.filtered, "2_wt", "2_hetero", logfc.threshold = 0, min.diff.pct = 0.20)
+cluster3 <- FindMarkers(sox10.cluster7.filtered, "3_wt", "3_hetero", logfc.threshold = 0, min.diff.pct = 0.20)
+cluster4 <- FindMarkers(sox10.cluster7.filtered, "4_wt", "4_hetero", logfc.threshold = 0, min.diff.pct = 0.20)
+  ##WT cluster 5 contained three or fewer cells and was therefore excluded from comparative analysis.
+add_info <- function(df, cl) {df$gene <- rownames(df)
+  df$cluster <- cl
+  df}
+deg.subcluster7 <- rbind(
+  add_info(cluster0, "0"),
+  add_info(cluster1, "1"),
+  add_info(cluster2, "2"),
+  add_info(cluster3, "3"),
+  add_info(cluster4, "4"))
+write.csv(deg.subcluster7,
+  "Input directory and file name", row.names = FALSE)
+
+#Heatmap in Fig. 5D
+library(dplyr)
+library(Seurat)
+library(pheatmap)
+sox10.cluster7.filtered<- readRDS("directory/sox10_cluster7.rds")
+DefaultAssay(sox10.cluster7.filtered) <- "RNA"
+Idents(sox10.cluster7.filtered) <- "integrated_snn_res.0.5"
+markers <- FindAllMarkers(sox10.cluster7.filtered, only.pos = T)
+markers_top20 <- markers %>% group_by(cluster) %>% top_n(n=20, wt=avg_log2FC)
+unique_markers <- markers_top20 %>%
+  group_by(gene) %>%
+  filter(n_distinct(cluster) == 1) %>%
+  ungroup()
+sox10.cluster7.filtered<-ScaleData(sox10.cluster7.filtered)
+top10_unique <- unique_markers %>%
+  group_by(cluster) %>%
+  top_n(10, wt = avg_log2FC) %>%
+  ungroup()
+write.csv("directory/file name.csv")
+top10_unique <- read.csv("directory/file name.csv ")
+cluster_levels <- c("3", "1", "4", "2", "0", "5")
+top10_unique$cluster <- factor(top10_unique$cluster, levels = cluster_levels)
+top10_unique <- top10_unique %>%
+  arrange(cluster, desc(avg_log2FC))
+gene_order <- top10_unique$gene
+avg_exp <- AverageExpression(sox10.cluster7.filtered, assays = "RNA", slot = "data")$RNA
+avg_exp <- avg_exp[gene_order, cluster_levels]
+p<-pheatmap(
+  avg_exp,
+  cluster_rows = FALSE,  
+  cluster_cols = FALSE,  
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  scale = "row",
+  fontsize_row = 6,
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+
+##Pseudotime analysis in subclustering
+install.packages("R.utils")
+devtools::install_github('satijalab/seurat-wrappers')
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+sox10_combined <- readRDS("directory/sox10_cluster7.rds")
+Idents(sox10_combined) <- "seurat_clusters"
+DimPlot(sox10_combined) 
+sox10_combined.cds <- as.cell_data_set(sox10_combined)
+sox10_combined.cds <- estimate_size_factors(sox10_combined.cds)
+rowData(sox10_combined.cds)$gene_short_name <- row.names(rowData(sox10_combined.cds))
+sox10_combined.cds <- cluster_cells(cds = sox10_combined.cds, reduction_method = "UMAP", resolution = 0.03)
+sox10_combined.cds@clusters@listData[["UMAP"]][["clusters"]]
+sox10_combined.cds <- learn_graph(sox10_combined.cds, use_partition = TRUE)
+plot_cells(sox10_combined.cds, cell_size = 1, group_label_size = 6, graph_label_size = 5,)
+sox10_combined.cds <- order_cells(sox10_combined.cds)
+plot_cells(sox10_combined.cds,
+           color_cells_by = "pseudotime",
+           label_cell_groups=FALSE,
+           cell_size = 1,
+           label_leaves=FALSE,
+           label_branch_points=FALSE,
+           graph_label_size=1.5)
+
+
+
+##Fig. S6, A and B
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+sox10.cluster7.filtered <- readRDS("directory/sox10_cluster7.rds")
+DefaultAssay(sox10.cluster7.filtered) <- "RNA"
+all.marker <- read.csv("Directory", row.names = 1)
+gene.list <- all.marker$gene
+for (gene in gene.list) {
+  if (gene %in% rownames(sox10.cluster7.filtered@assays$RNA@data)) {
+    sox10.cluster7.filtered[[gene]] <- sox10.cluster7.filtered@assays$RNA@data[gene, ]
+  } else {warning(paste("Gene not found:", gene))}}
+new_target_gene <- c("gene name")
+for (gene in new_target_gene) {
+  if (gene %in% rownames(sox10.cluster7.filtered@assays$RNA@data)) {
+    sox10.cluster7.filtered[[gene]] <- sox10.cluster7.filtered@assays$RNA@data[gene, ]
+  } else {warning(paste("Gene not found:", gene))}}
+umap_coords <- sox10.cluster7.filtered@reductions$umap@cell.embeddings
+cells_below_10 <- rownames(umap_coords[umap_coords[, "UMAP_1"] <= 10, ])
+sox10.cluster7.filtered <- subset(sox10.cluster7.filtered, cells = cells_below_10)
+Idents(sox10.cluster7.filtered) <- "seurat_clusters"
+DimPlot(sox10.cluster7.filtered) 
+sox10.cluster7.filtered.cds <- as.cell_data_set(sox10.cluster7.filtered)
+sox10.cluster7.filtered.cds <- estimate_size_factors(sox10.cluster7.filtered.cds)
+rowData(sox10.cluster7.filtered.cds)$gene_short_name <- row.names(rowData(sox10.cluster7.filtered.cds))
+sox10.cluster7.filtered.cds <- cluster_cells(cds = sox10.cluster7.filtered.cds, reduction_method = "UMAP", resolution = 0.03)
+sox10.cluster7.filtered.cds@clusters@listData[["UMAP"]][["clusters"]]
+sox10.cluster7.filtered.cds <- learn_graph(sox10.cluster7.filtered.cds, use_partition = FALSE)
+plot_cells(sox10.cluster7.filtered.cds, cell_size = 1, 
+           group_label_size = 4, graph_label_size = 3,
+)
+sox10.cluster7.filtered.cds <- order_cells(sox10.cluster7.filtered.cds, root_pr_nodes = "Y_83")
+library(dplyr)
+colData(sox10.cluster7.filtered.cds)$seurat_clusters <- 
+  recode(as.character(colData(sox10.cluster7.filtered.cds)$seurat_clusters),
+         "3" = "Sc0",
+         "1" = "Sc1",
+         "4" = "Sc2",
+         "2" = "Sc3",
+         "0" = "Sc4",
+         "5" = "Sc5")
+plot_cells(sox10.cluster7.filtered.cds,
+           color_cells_by = "pseudotime",
+           label_cell_groups=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=FALSE,
+           trajectory_graph_segment_size = 3,
+           graph_label_size=1.5,
+           trajectory_graph_color = "red",
+           cell_size = 3)+ theme(
+             axis.line = element_line(colour = "black"), 
+             axis.text = element_text(size = 60),
+             axis.title = element_text(size = 60),
+             legend.text = element_text(size = 30),     
+             legend.title = element_text(size = 30),     
+             legend.key.size = unit(0.8, "cm"))
+
+library(ggplot2)
+library(monocle3)
+library(grid)
+dir.create("annotation_rev_QC", showWarnings = FALSE)
+for (gene in c(new_target_gene, gene.list)) {
+  if (gene %in% colnames(colData(sox10.cluster7.filtered.cds))) {
+    p <- plot_cells(
+      sox10.cluster7.filtered.cds,
+      color_cells_by = gene,
+      label_cell_groups = FALSE,
+      label_leaves = FALSE,
+      label_branch_points = FALSE,
+      trajectory_graph_segment_size = 1.5+1.5,
+      graph_label_size = 1.5,
+      trajectory_graph_color = "red",
+      cell_size = 5
+    ) +
+      theme(
+        axis.text = element_text(size = 60),
+        axis.title = element_text(size = 60),
+        legend.text = element_text(size = 30),
+        legend.title = element_text(size = 30),
+        legend.key.size = unit(0.8, "cm")
+      )+scale_color_gradient(low="lightgrey", high="blue")}
+
+
+
+
+

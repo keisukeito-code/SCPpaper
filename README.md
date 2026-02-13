@@ -11,3 +11,4 @@ R version: 4.2.0 (We have not verified whether running this code with a differen
 
 ## Notes
 In the code (e.g., saveRDS and readRDS), the "directory" indicates an arbitrary file path for saving or loading data; therefore, please modify it to your own desired directory.
+Please also modify the gene names according to your interests (e.g., FeaturePlot).

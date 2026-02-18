@@ -1,4 +1,4 @@
-# The paper title "Sympatho-adrenal cells reside systemically as a latent origin of neuroblastoma"
+# The paper title "Systemic sympatho-adrenal potential embedded in peripheral glia predisposes to neuroblastoma"
 
 ## Overview
 We compared schwann cell precursors (SCPs) from wild-type and Sox10 heterozygous mice to investigate why the reduction of Sox10 gene dose enhances SCP-derived SA cell generation.

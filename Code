@@ -41,7 +41,9 @@ p2 <- DimPlot(sox10_combined, reduction = "umap", label = TRUE)
 plot_grid(p1, p2)
 DimPlot(sox10_combined, reduction = "umap", group.by = "hetero")
 DimPlot(sox10_combined, reduction = "umap", split.by = "hetero")
-cells_to_remove <- WhichCells(sox10_combined, idents = c(9, 10)) ##Cluster 9 and 10 are low-quality cells; therefore we removed these culsters.
+cells_to_remove <- WhichCells(sox10_combined, idents = c(9, 10)) 
+##Cluster 9 and 10 are low-quality cells; therefore we removed these culsters.
+##We renamed cluster 11 and 12 into cluster 9 and 10.
 sox10_combined_filtered_9and10 <- subset(sox10_combined, cells = setdiff(Cells(sox10_combined), cells_to_remove))
 DimPlot(sox10_combined_filtered_9and10, split.by = "hetero", pt.size = 3))
 sox10_combined_filtered_9and10$hetero <- factor(x = sox10_combined$hetero, levels = c("wt", "hetero"))
@@ -54,24 +56,17 @@ FeaturePlot(sox10_combined_filtered_9and10, features = c("Phox2b"), split.by = "
   theme(legend.position = "right")
 
 
-
 #Heatmap fig. S2B
-cells.use <- WhichCells(
-  sox10_combined_filtered_9and10,
+cells.use <- WhichCells(sox10_combined_filtered_9and10_WT,
   idents = c(7, 8, 11, 12))
-sox10_combined_filtered_9and10 <- ScaleData(
-  sox10_combined_filtered_9and10,
-  assay = "RNA")
-DoHeatmap(
-  sox10_combined_filtered_9and10,
+DoHeatmap(sox10_combined_filtered_9and10_WT,
   assay = "RNA",
-  features = c(
-    "Phox2b", "Phox2a", "Tubb3", "Elavl3", "Elavl4",
+  features = c("Phox2b", "Phox2a", "Tubb3", "Elavl3", "Elavl4",
     "C1qa", "Ccl3", "Ccl4", "Aif1", "Vav1",
     "Actc1", "Acta2", "Tnnt1", "Myog", "Myl1",
     "Tyr", "Pmel", "Dct", "Mitf", "Kit"),
-  cells = cells.use) + scale_fill_gradientn(colors = c("blue", "white", "red"))
-
+  cells = cells.use) 
+  + scale_fill_gradientn(colors = c("blue", "white", "red"))
 
 
 #Dot plot fig. S2C

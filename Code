@@ -56,7 +56,7 @@ FeaturePlot(sox10_combined_filtered_9and10, features = c("Phox2b"), split.by = "
   theme(legend.position = "right")
 
 
-#Heatmap fig. S2B
+#Heatmap ExDataFig.2b
 cells.use <- WhichCells(sox10_combined_filtered_9and10_WT,
   idents = c(7, 8, 11, 12))
 DoHeatmap(sox10_combined_filtered_9and10_WT,
@@ -69,7 +69,7 @@ DoHeatmap(sox10_combined_filtered_9and10_WT,
   + scale_fill_gradientn(colors = c("blue", "white", "red"))
 
 
-#Dot plot fig. S2C
+#Dot plot ExDataFig.2c
 cells_to_remove <- WhichCells(sox10_combined, idents = c(8, 9, 10, 11, 12))
 wt_cells <- WhichCells(sox10_combined, expression = hetero == "wt")
 wt_cells_filtered <- setdiff(wt_cells, cells_to_remove)
@@ -89,7 +89,7 @@ b <- DotPlot(sox10_WT_filtered, features, assay = "RNA") +
 plot_grid(b)
 
 
-#Cell cycle scoring fig. S2D
+#Cell cycle scoring ExDataFig.2d
 sox10_combined_filtered_9and10@meta.data
 s.genes <- sapply(cc.genes.updated.2019$s.genes, function(x){paste0(substr(x,1,1), tolower(substr(x,2,nchar(x))))})
 g2m.genes <- sapply(cc.genes.updated.2019$g2m.genes, function(x){paste0(substr(x,1,1), tolower(substr(x,2,nchar(x))))})
@@ -101,7 +101,7 @@ DimPlot(sox10_combined_filtered_9and10, group.by="Phase", split.by = "hetero", p
 
 
 
-##Pseudotime analysis in fig. S2E
+##Pseudotime analysis in ExDataFig.2e
 ####Library install
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
@@ -141,7 +141,7 @@ DimPlot(sox10_combined_filtered_9and10, label=TRUE)
 
 
 
-#Mean expression of Phox2b in fig. S4B
+#Mean expression of Phox2b in ExDataFig.4b
 target_gene <- "Phox2b"
 phox2b_count <- FetchData(
   object = sox10_combined_filtered_9and10,
@@ -169,7 +169,7 @@ p1 <- ggplot(mean_expr_by_cluster, aes(x = seurat_clusters,
 print(p1)
 
 
-#Percentage of Phox2b-expressing cells, histogram in fig. S4C
+#Percentage of Phox2b-expressing cells, histogram in ExDataFig.4c
 gene <- "Phox2b"
 data <- FetchData(subset(sox10_combined_filtered_9and10, idents = c("0","1","2","3","4","5","6")), vars = c("orig.ident", "seurat_clusters", gene), slot = "count")
 sum_wt <- sum(data$orig.ident == "sox10_wt")
@@ -198,7 +198,7 @@ CombinePlots(plots = plots, ncol = 1)
 
 
 
-##Subclustering in Fig. 4A
+##Subclustering in Fig.4a
 Idents(sox10_combined_filtered_9and10) <- "seurat_clusters"
 sox10.cluster7 <- subset(sox10_combined_filtered_9and10, idents=7)
 DimPlot(sox10.cluster7)
@@ -227,7 +227,7 @@ saveRDS(sox10_cluster7, file = "directory/sox10_cluster7.rds")
 
 
 
-##Pseudotime analysis in subclustering, Fig. 4B
+##Pseudotime analysis in subclustering, Fig.4b
 install.packages("R.utils")
 devtools::install_github('satijalab/seurat-wrappers')
 library(monocle3)
@@ -252,7 +252,7 @@ plot_cells(sox10.cluster7.filtered.cds,
            label_branch_points=FALSE,
            graph_label_size=1.5)
 
-#cell cycle scoring in Fig. 4C
+#cell cycle scoring in Fig.4c
 sox10.cluster7.filtered@meta.data
 s.genes <- sapply(cc.genes.updated.2019$s.genes, function(x){paste0(substr(x,1,1), tolower(substr(x,2,nchar(x))))})
 g2m.genes <- sapply(cc.genes.updated.2019$g2m.genes, function(x){paste0(substr(x,1,1), tolower(substr(x,2,nchar(x))))})
@@ -262,7 +262,7 @@ sox10.cluster7.filtered <- CellCycleScoring(sox10.cluster7.filtered,
 DimPlot(sox10.cluster7.filtered, group.by="Phase", pt.size = 4) 
 
 
-#Heatmap in Fig. 4D
+#Heatmap in Fig.4d
 library(dplyr)
 library(Seurat)
 library(pheatmap)
@@ -300,14 +300,14 @@ p<-pheatmap(
   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
 
 
-#Feature plot in Fig. 4E
+#Feature plot in Fig.4e
 FeaturePlot(sox10.cluster7.filtered, features = c("Phox2b"),
             cols = c("lightgrey", "blue"), pt.size = 3) & 
   theme(legend.position = "right")
 
 
 
-##DEG searching in Fig. 6A and table S1
+##DEG searching in Fig.6a and Supplementary Table1
 umap_coords <- Embeddings(sox10.cluster7, "umap")
 outliers <- rownames(umap_coords[umap_coords[, "UMAP_1"] > 10 & umap_coords[, "UMAP_2"] < -5, ])
 sox10.cluster7.filtered <- subset(sox10.cluster7,cells = setdiff(Cells(sox10.cluster7), outliers))
@@ -345,7 +345,7 @@ write.csv(deg.subcluster7,
   "Input directory and file name", row.names = FALSE)
 
 
-##Pseudotime trajectory onto UMAPS, Fig. S6, A and B
+##Pseudotime trajectory onto UMAPS, ExDataFig.6a,b
 library(monocle3)
 library(Seurat)
 library(SeuratWrappers)
@@ -426,8 +426,3 @@ for (gene in c(new_target_gene, gene.list)) {
         legend.title = element_text(size = 30),
         legend.key.size = unit(0.8, "cm")
       )+scale_color_gradient(low="lightgrey", high="blue")}
-
-
-
-
-

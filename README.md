@@ -37,11 +37,11 @@ Run the following code:
 
 data.dir <- "data/wt/"
 
-IWT.data <- Read10X(data.dir = "Y:/scRNAseq data/wt")
+IWT.data <- Read10X(data.dir = "Y:/wt")
 
-IHE.data <- Read10X(data.dir = "Y:/scRNAseq data/hetero")
+IHE.data <- Read10X(data.dir = "Y:/hetero")
 
-In this example, the data are assumed to be stored on the Y: drive (e.g., Y:/scRNAseq data/).
+In this example, the data are assumed to be stored on the Y: drive.
 
 Please modify the file paths according to your local environment.
 

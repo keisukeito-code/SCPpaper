@@ -14,7 +14,9 @@ R version: 4.2.0 (We have not verified whether running this code with a differen
 dplyr version 1.1.4, Seurat version 5.4.0, cowplot version 1.2.0, ggplot2 version 4.0.1, patchwork version 1.3.2, Biomanager version 3.22, SeuratWrappers version 0.3.0, monocle3 version 1.2.9
 
 ## Installation guide
-You can install packages just running the codes. (e.g, install.packages(c("dplyr", "ggplot2", "patchwork", "cowplot"))). 5-10 min are required for installation.
+You can install packages just running the codes. (e.g, install.packages(c("dplyr", "ggplot2", "patchwork", "cowplot"))). 
+
+5-10 min are required for installation.
 
 ## Demo
 Please download the attached RDS file (sox10_cluster7.rds) and run the following code:

@@ -13,6 +13,8 @@ R version: 4.2.0 (We have not verified whether running this code with a differen
 
 dplyr version 1.1.4, Seurat version 5.4.0, cowplot version 1.2.0, ggplot2 version 4.0.1, patchwork version 1.3.2, Biomanager version 3.22, SeuratWrappers version 0.3.0, monocle3 version 1.2.9
 
+No non-standard hardware is required.
+
 ## Installation guide
 You can install packages just running the codes. (e.g, install.packages(c("dplyr", "ggplot2", "patchwork", "cowplot"))). 
 
@@ -28,6 +30,22 @@ DimPlot(sox10_cluster7)
 The expected output is a plot with a shape similar to Fig. 4a (including an outlier).
 The expected run time is within 1 minute. 
 
+## Instructions for use
+Download the raw data from GEO (accession number: GSE304632) and save them into two folders named "wt" and "hetero".
+
+Run the following code:
+
+data.dir <- "data/wt/"
+
+IWT.data <- Read10X(data.dir = "Y:/scRNAseq data/wt")
+
+IHE.data <- Read10X(data.dir = "Y:/scRNAseq data/hetero")
+
+In this example, the data are assumed to be stored on the Y: drive (e.g., Y:/scRNAseq data/).
+
+Please modify the file paths according to your local environment.
+
 ## Notes
 In the code (e.g., saveRDS and readRDS), the "directory" indicates an arbitrary file path for saving or loading data; therefore, please modify it to your own desired directory.
+
 Please also modify the gene names according to your interests (e.g., FeaturePlot).

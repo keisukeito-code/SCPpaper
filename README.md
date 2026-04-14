@@ -13,6 +13,13 @@ OS: Windows 11, R version: 4.2.0 (We have not verified whether running this code
 You can install packages just running the codes. (e.g, install.packages(c("dplyr", "ggplot2", "patchwork", "cowplot"))). 5-10 min are required for installation.
 
 ## Demo
+Please download the attached RDS file (sox10_cluster7.rds) and run the following code:
+
+sox10_cluster7 <- readRDS("sox10_cluster7.rds")
+DimPlot(sox10_cluster7)
+
+The expected output is a plot with a shape similar to Fig. 4a (including an outlier).
+The expected run time is within 1 minute. 
 
 ## Notes
 In the code (e.g., saveRDS and readRDS), the "directory" indicates an arbitrary file path for saving or loading data; therefore, please modify it to your own desired directory.

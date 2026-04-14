@@ -16,6 +16,7 @@ You can install packages just running the codes. (e.g, install.packages(c("dplyr
 Please download the attached RDS file (sox10_cluster7.rds) and run the following code:
 
 sox10_cluster7 <- readRDS("sox10_cluster7.rds")
+
 DimPlot(sox10_cluster7)
 
 The expected output is a plot with a shape similar to Fig. 4a (including an outlier).
